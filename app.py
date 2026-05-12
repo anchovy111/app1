@@ -293,7 +293,7 @@ with tab5:
                  use_container_width=True)
     
     # 下载数据按钮
-    csv = filtered_df.to_csv(index=False, encoding='utf-8')
+    csv = filtered_df.to_csv(index=False, encoding='gbk')
     st.download_button(
         "📥 下载数据 (CSV)",
         csv,
