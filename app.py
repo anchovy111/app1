@@ -292,13 +292,20 @@ with tab5:
     st.dataframe(filtered_df[['订单ID', '订单日期', '产品名称', '城市', '单价', '数量', '订单金额']], 
                  use_container_width=True)
     
-    # 下载数据按钮
-    csv = filtered_df.to_csv(index=False, encoding='gbk')
+    # 下载数据按钮 - 使用UTF-8编码避免乱码
+    csv_data = filtered_df[['订单ID', '订单日期', '产品名称', '城市', '单价', '数量', '订单金额']].copy()
+    
+    # 格式化日期列
+    csv_data['订单日期'] = csv_data['订单日期'].dt.strftime('%Y-%m-%d')
+    
+    # 转换为CSV，使用UTF-8编码
+    csv_bytes = csv_data.to_csv(index=False).encode('utf-8')
+    
     st.download_button(
-        "📥 下载数据 (CSV)",
-        csv,
-        "电商销售数据.csv",
-        "text/csv"
+        label="📥 下载数据 (CSV)",
+        data=csv_bytes,
+        file_name="电商销售数据_2024.csv",
+        mime="text/csv"
     )
 
 # ===== 页脚 =====
