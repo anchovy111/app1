@@ -68,6 +68,12 @@ def generate_data():
     
     for i in range(n_records):
         date = np.random.choice(dates)
+        # 确保date是Python datetime对象
+        if hasattr(date, 'strftime'):
+            date_str = date.strftime('%Y%m%d')
+        else:
+            # 如果是numpy datetime，转成Python datetime
+            date_str = pd.Timestamp(date).strftime('%Y%m%d')
         product = np.random.choice(list(products.keys()))
         customer = np.random.choice(customer_ids)
         city = np.random.choice(cities)
@@ -75,7 +81,7 @@ def generate_data():
         quantity = np.random.choice([1, 1, 1, 2, 3])
         discount = np.random.choice([1.0, 0.95, 0.9, 0.85], p=[0.5, 0.25, 0.15, 0.1])
         amount = price * quantity * discount
-        order_id = f"ORD{date.strftime('%Y%m%d')}{i:04d}"
+        order_id = f"ORD{date_str}{i:04d}"
         
         data.append({
             '订单ID': order_id,
