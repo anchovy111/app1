@@ -14,6 +14,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from io import BytesIO
 
 # 设置页面配置
 st.set_page_config(
@@ -292,21 +293,42 @@ with tab5:
     st.dataframe(filtered_df[['订单ID', '订单日期', '产品名称', '城市', '单价', '数量', '订单金额']], 
                  use_container_width=True)
     
-    # 下载数据按钮 - 使用UTF-8编码避免乱码
-    csv_data = filtered_df[['订单ID', '订单日期', '产品名称', '城市', '单价', '数量', '订单金额']].copy()
+    # ===== 数据下载区域 =====
+    st.subheader("📥 数据下载")
     
-    # 格式化日期列
-    csv_data['订单日期'] = csv_data['订单日期'].dt.strftime('%Y-%m-%d')
+    col_dl1, col_dl2 = st.columns(2)
     
-    # 转换为CSV，使用UTF-8编码
-    csv_bytes = csv_data.to_csv(index=False).encode('utf-8')
+    with col_dl1:
+        # 下载CSV文件 - UTF-8-BOM编码
+        csv_data = filtered_df[['订单ID', '订单日期', '产品名称', '城市', '单价', '数量', '订单金额']].copy()
+        csv_data['订单日期'] = csv_data['订单日期'].dt.strftime('%Y-%m-%d')
+        csv_bytes = csv_data.to_csv(index=False).encode('utf-8-sig')
+        
+        st.download_button(
+            label="📄 下载CSV文件",
+            data=csv_bytes,
+            file_name="电商销售数据_2024.csv",
+            mime="text/csv",
+            help="推荐使用，支持Excel直接打开"
+        )
     
-    st.download_button(
-        label="📥 下载数据 (CSV)",
-        data=csv_bytes,
-        file_name="电商销售数据_2024.csv",
-        mime="text/csv"
-    )
+    with col_dl2:
+        # 下载Excel文件（推荐，中文无乱码）
+        excel_buffer = BytesIO()
+        excel_data = filtered_df[['订单ID', '订单日期', '产品名称', '城市', '单价', '数量', '订单金额']].copy()
+        excel_data['订单日期'] = excel_data['订单日期'].dt.strftime('%Y-%m-%d')
+        excel_data.to_excel(excel_buffer, index=False, sheet_name='销售数据', engine='openpyxl')
+        excel_bytes = excel_buffer.getvalue()
+        
+        st.download_button(
+            label="📊 下载Excel文件",
+            data=excel_bytes,
+            file_name="电商销售数据_2024.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="推荐！中文显示完美，无需设置编码"
+        )
+    
+    st.caption("💡 Excel格式推荐：完全支持中文，无需任何设置")
 
 # ===== 页脚 =====
 st.markdown("---")
