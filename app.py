@@ -32,7 +32,7 @@ st.markdown("---")
 st.sidebar.title("🎛️ 控制面板")
 st.sidebar.markdown("---")
 
-# ===== 1. 数据生成 =====
+# ===== 1. 数据上传与生成 =====
 @st.cache_data
 def generate_data():
     """生成模拟数据，使用缓存加速"""
@@ -91,9 +91,57 @@ def generate_data():
     df = df.sort_values('订单日期').reset_index(drop=True)
     return df
 
+def load_uploaded_data(uploaded_file):
+    """加载上传的数据文件"""
+    try:
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file)
+        elif uploaded_file.name.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(uploaded_file)
+        else:
+            st.error("不支持的文件格式！请上传CSV或Excel文件")
+            return None
+        
+        # 检查必要的列
+        required_columns = ['订单日期', '订单金额']
+        if not all(col in df.columns for col in required_columns):
+            st.warning(f"数据缺少必要列，期望列: {required_columns}")
+        
+        # 尝试转换日期列
+        if '订单日期' in df.columns:
+            df['订单日期'] = pd.to_datetime(df['订单日期'], errors='coerce')
+        
+        # 尝试转换数值列
+        numeric_cols = ['订单金额', '单价', '数量', '折扣']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        return df.dropna().reset_index(drop=True)
+    except Exception as e:
+        st.error(f"加载数据失败: {str(e)}")
+        return None
+
+# ===== 数据上传区域 =====
+st.sidebar.subheader("📁 数据上传")
+uploaded_file = st.sidebar.file_uploader(
+    "上传CSV或Excel文件",
+    type=['csv', 'xlsx', 'xls'],
+    help="上传您的销售数据文件，支持CSV和Excel格式"
+)
+
 # 加载数据
 with st.spinner('正在加载数据...'):
-    df = generate_data()
+    if uploaded_file is not None:
+        df = load_uploaded_data(uploaded_file)
+        if df is not None:
+            st.sidebar.success(f"✅ 成功加载 {len(df)} 条数据")
+        else:
+            df = generate_data()
+            st.sidebar.info("使用模拟数据")
+    else:
+        df = generate_data()
+        st.sidebar.info("📊 使用模拟数据（上传文件可替换）")
 
 df['月份'] = df['订单日期'].dt.month
 df['星期'] = df['订单日期'].dt.dayofweek
@@ -194,7 +242,7 @@ with tab1:
     )
     fig.add_trace(px.area(monthly, x='月份', y='订单金额').data[0])
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 # ===== 标签页2：产品分析 =====
 with tab2:
@@ -216,7 +264,7 @@ with tab2:
             template='plotly_white',
             height=400
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
     with col_prod2:
         st.subheader("产品类别占比")
@@ -228,7 +276,7 @@ with tab2:
             title='Sales by Category'
         )
         fig.update_layout(template='plotly_white', height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 # ===== 标签页3：城市分析 =====
 with tab3:
@@ -248,7 +296,7 @@ with tab3:
         template='plotly_white',
         height=400
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 # ===== 标签页4：时间分析 =====
 with tab4:
@@ -270,7 +318,7 @@ with tab4:
             color_discrete_map={'工作日 (Weekday)': '#3498DB', '周末 (Weekend)': '#E74C3C'}
         )
         fig.update_layout(template='plotly_white', height=350, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
     with col_week2:
         st.write("**平均客单价对比**")
@@ -283,7 +331,7 @@ with tab4:
             color_discrete_map={'工作日 (Weekday)': '#3498DB', '周末 (Weekend)': '#E74C3C'}
         )
         fig.update_layout(template='plotly_white', height=350, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 # ===== 标签页5：数据表格 =====
 with tab5:
@@ -291,12 +339,12 @@ with tab5:
     
     # 显示数据
     st.dataframe(filtered_df[['订单ID', '订单日期', '产品名称', '城市', '单价', '数量', '订单金额']], 
-                 use_container_width=True)
+                 width='stretch')
     
     # ===== 数据下载区域 =====
     st.subheader("📥 数据下载")
     
-    col_dl1, col_dl2 = st.columns(2)
+    col_dl1, col_dl2,col_dl3 = st.columns(3)
     
     with col_dl1:
         # 下载CSV文件 - UTF-8-BOM编码
@@ -327,7 +375,20 @@ with tab5:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             help="推荐！中文显示完美，无需设置编码"
         )
-    
+    with col_dl3:
+        # 下载Excel文件（推荐，中文无乱码）
+        excel_buffer = BytesIO()
+        
+        df.to_excel(excel_buffer, index=False, sheet_name='销售数据', engine='openpyxl')
+        excel_bytes = excel_buffer.getvalue()
+        
+        st.download_button(
+            label="📊 下载Excel_Raw文件",
+            data=excel_bytes,
+            file_name="电商销售数据.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="推荐！中文显示完美，无需设置编码"
+        )
     st.caption("💡 Excel格式推荐：完全支持中文，无需任何设置")
 
 # ===== 页脚 =====
